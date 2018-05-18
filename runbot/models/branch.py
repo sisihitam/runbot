@@ -34,6 +34,19 @@ class runbot_branch(models.Model):
             res.append((br.id, br.repo_id.name.split(':')[-1] + ':' + br.name))
         return res
 
+    @api.model
+    def name_search(self, name, args=None, operator='ilike', limit=100):
+        args = args or []
+        domain = []
+        if name:
+            if ':' in name:
+                repo_name, branch_name = name.split(':', maxsplit=1)
+                domain = ['&', ('name', operator, branch_name), ('repo_id.name', operator, repo_name)]
+            else:
+                domain = ['|', ('name', operator, name), ('repo_id.name', operator, name)]
+        branches = self.search(domain + args, limit=limit)
+        return branches.name_get()
+
     @api.depends('name')
     def _get_branch_name(self):
         """compute the branch name based on ref name"""
