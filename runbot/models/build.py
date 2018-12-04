@@ -92,11 +92,17 @@ class runbot_build(models.Model):
         ]
 
         for duplicate in self.search(domain):
+            _logger.warning('duplicate: %s -- %s', duplicate.id, duplicate.dest)
+            _logger.warning('build: %s -- %s', build_id.id, build_id.dest)
+            _logger.warning('build repo: %s', build_id.repo_id.name)
             duplicate_id = duplicate.id
             # Consider the duplicate if its closest branches are the same than the current build closest branches.
             for extra_repo in build_id.repo_id.dependency_ids:
+                _logger.warning('extra_repo: %s', extra_repo.name)
                 build_closest_name = build_id._get_closest_branch_name(extra_repo.id)[1]
+                _logger.warning('build_closest_name: %s', build_closest_name)
                 duplicate_closest_name = duplicate._get_closest_branch_name(extra_repo.id)[1]
+                _logger.warning('duplicate_closest_name: %s', duplicate_closest_name)
                 if build_closest_name != duplicate_closest_name:
                     duplicate_id = None
         if duplicate_id and not context.get('force_rebuild'):
