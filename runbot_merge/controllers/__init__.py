@@ -87,23 +87,25 @@ def handle_pr(env, event):
             ('name', '=', source),
             ('project_id', '=', repo.project_id.id),
         ])
-        # retargeting to un-managed => delete
-        if not branch:
-            pr = find(source_branch)
-            pr.unlink()
-            return 'Retargeted {} to un-managed branch {}, deleted'.format(pr.id, b)
 
         # retargeting from un-managed => create
         if not source_branch:
             return handle_pr(env, dict(event, action='opened'))
 
+        pr_obj = find(source_branch)
+        # retargeting to un-managed => delete
+        if not branch:
+            pr_obj.unlink()
+            return 'Retargeted {} to un-managed branch {}, deleted'.format(pr_obj.id, b)
+
         updates = {}
         if source_branch != branch:
             updates['target'] = branch.id
+            from ..models.pull_requests import RMINUS
+            updates['state'] = RMINUS.get(pr_obj.state, pr_obj.state)
         if event['changes'].keys() & {'title', 'body'}:
             updates['message'] = "{}\n\n{}".format(pr['title'].strip(), pr['body'].strip())
         if updates:
-            pr_obj = find(source_branch)
             pr_obj.write(updates)
             return 'Updated {}'.format(pr_obj.id)
         return "Nothing to update ({})".format(event['changes'].keys())

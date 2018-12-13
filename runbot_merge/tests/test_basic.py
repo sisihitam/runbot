@@ -536,6 +536,49 @@ def test_edit(env, repo):
         ('number', '=', prx.number)
     ]).target == branch_1
 
+def test_retarget_managed(env, repo):
+    "retargeting between managed branches should unreview (as if a user had r-'d it)"
+    env['runbot_merge.branch'].create({
+        'name': '1.0',
+        'project_id': env['runbot_merge.project'].search([]).id,
+    })
+
+    m = repo.make_commit(None, 'initial', None, tree={'m': 'm'})
+    repo.make_ref('heads/master', m)
+    repo.make_ref('heads/1.0', m)
+
+    c1 = repo.make_commit(m, 'first', None, tree={'m': 'c1'})
+    c2 = repo.make_commit(c1, 'second', None, tree={'m': 'c2'})
+    prx = repo.make_pr('title', 'body', target='master', ctid=c2, user='user')
+    pr = env['runbot_merge.pull_requests'].search([
+        ('repository.name', '=', repo.name),
+        ('number', '=', prx.number)
+    ])
+
+    prx.post_comment('hansen r+ rebase-merge', user='reviewer')
+    assert pr.state == 'approved'
+    prx.base = '1.0'
+    assert pr.state == 'opened'
+
+    repo.post_status(prx.head, 'success', 'legal/cla')
+    repo.post_status(prx.head, 'success', 'ci/runbot')
+    prx.post_comment('hansen r+', user='reviewer')
+    assert pr.state == 'ready'
+    prx.base = 'master'
+    assert pr.state == 'validated'
+
+    prx.post_comment('hansen r+', user='reviewer')
+    assert pr.state == 'ready'
+    run_crons(env)
+    assert pr.staging_id
+
+    repo.post_status('heads/staging.master', 'success', 'legal/cla')
+    repo.post_status('heads/staging.master', 'failure', 'ci/runbot')
+    run_crons(env)
+    assert pr.state == 'error'
+    prx.base = '1.0'
+    assert pr.state == 'validated'
+
 @pytest.mark.skip(reason="what do?")
 def test_edit_retarget_managed(env, repo):
     """ A PR targeted to an un-managed branch is ignored but if the PR
