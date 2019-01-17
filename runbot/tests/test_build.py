@@ -203,3 +203,91 @@ class Test_Build(common.TransactionCase):
         })
 
         self.assertEqual((server_repo.id, 'master', 'default'), addons_build._get_closest_branch_name(server_repo.id))
+
+
+class Test_Build_find_duplicate(common.TransactionCase):
+
+    @patch('odoo.addons.runbot.models.branch.runbot_branch._is_on_remote')
+    @patch('odoo.addons.runbot.models.repo.runbot_repo._github')
+    def test_find_duplicate(self, mock_github, mock_is_on_remote):
+        foo_repo = self.env['runbot.repo'].create({'name': 'git@somewhere.com:foo/foo'})
+        foo_dev_repo = self.env['runbot.repo'].create({'name': 'git@somewhere.com:foo-dev/foo'})
+        foo_repo_ent = self.env['runbot.repo'].create({
+            'name': 'git@somewhere.com:foo/enterprise',
+            'dependency_ids': [(4, foo_repo.id), ],
+        })
+        foo_dev_repo_ent = self.env['runbot.repo'].create({
+            'name': 'git@somewhere.com:foo-dev/enterprise',
+            'dependency_ids': [(4, foo_dev_repo.id), ],
+        })
+
+        foo_repo.duplicate_id = foo_dev_repo.id
+        foo_dev_repo.duplicate_id = foo_repo.id
+        foo_repo_ent.duplicate_id = foo_dev_repo_ent.id
+        foo_dev_repo_ent.duplicate_id = foo_repo_ent.id
+
+        saas_ent_branch = self.env['runbot.branch'].create({
+            'repo_id': foo_repo_ent.id,
+            'name': 'refs/heads/saas-12.1'
+        })
+
+        saas_ent_build = self.env['runbot.build'].create({
+            'branch_id': saas_ent_branch.id,
+            'name': 'f312aaa55fb2ed52a31a38f8576d71f1a578f3c2',
+            'result': 'ko',
+            'state': 'running'
+        })
+
+        dev_branch = self.env['runbot.branch'].create({
+            'repo_id': foo_dev_repo.id,
+            'name': 'refs/heads/saas-12.1-fix-kanban-mobile-rfr',
+        })
+
+        # dev_build is finished
+        dev_build = self.env['runbot.build'].create({
+            'branch_id': dev_branch.id,
+            'name': '4f5482010c7d6367b806db71d7402aa3a0a55d16',
+            'state': 'done',
+            'result': 'ok'
+        })
+
+        # New PR created and detected after the build is Finished
+        pull_branch = self.env['runbot.branch'].create({
+            'repo_id': foo_repo.id,
+            'name': 'refs/pull/30177'
+        })
+
+        # now find the pull request
+        mock_github.return_value = {
+            'head': {'label': 'foo-dev:saas-12.1-fix-kanban-mobile-rfr'},
+            'base': {'ref': 'saas-12.1'},
+            'state': 'open'
+        }
+        pull_build = self.env['runbot.build'].create({
+            'branch_id': pull_branch.id,
+            'name': '4f5482010c7d6367b806db71d7402aa3a0a55d16',
+        })
+        self.assertEqual(pull_build.duplicate_id.id, dev_build.id)
+        self.assertEqual(pull_build.state, 'duplicate')
+
+        dev_ent_branch = self.env['runbot.branch'].create({
+            'repo_id': foo_dev_repo_ent.id,
+            'name': 'refs/heads/saas-12.1-fix-kanban-mobile-rfr',
+        })
+
+        # dev_ent build same as sass-12.1
+        mock_is_on_remote.return_value = True
+        dev_ent_build = self.env['runbot.build'].create({
+            'branch_id': dev_ent_branch.id,
+            'name': 'f312aaa55fb2ed52a31a38f8576d71f1a578f3c2'
+        })
+
+        # This test is false, it shoud be considered a duplicate
+        # as the branch of this build is just a copy of foo/enterpsie:saas-12.1
+        # the duplicate_id is found during creation but is discarded:
+        # build_closest_name = build_id._get_closest_branch_name(extra_repo.id)[1]
+        # returns 'refs/heads/saas-12.1-fix-kanban-mobile-rfr'
+        # duplicate_closest_name = duplicate._get_closest_branch_name(extra_repo.id)[1]
+        # returns 'master' (because saas-12.1 cannot be found in foo-dev repo)
+        self.assertEqual(dev_ent_build.state, 'pending')
+        self.assertEqual(dev_ent_build.duplicate_id.id, False)
