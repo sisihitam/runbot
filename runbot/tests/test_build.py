@@ -85,6 +85,62 @@ class Test_Build(common.TransactionCase):
         self.assertEqual(pr_build.state, 'duplicate')
         self.assertEqual(pr_build.duplicate_id.id, dev_build.id)
 
+    @patch('odoo.addons.runbot.models.build.runbot_build._branch_exists')
+    def test_dependency_duplicate(self, mock_branch_exists):
+        """ test duplicate detection with dependency repos.
+        This implies a least four repos that mock odoo repos
+        """
+        mock_branch_exists.return_value = True
+        comm_repo = self.repo
+        comm_dev_repo = self.Repo.create({'name': 'bla@example.com:foo-dev/bar'})
+        ent_repo = self.Repo.create({'name': 'bla@example.com:foo/entbar'})
+        ent_dev_repo = self.Repo.create({'name': 'bla@example.com:foo-dev/entbar'})
+        ent_repo.duplicate_id = ent_dev_repo.id
+        ent_dev_repo.duplicate_id = ent_repo.id
+        ent_repo.dependency_ids = comm_repo
+        ent_dev_repo.dependency_ids = comm_dev_repo
+        comm_repo.duplicate_id = comm_dev_repo.id
+        comm_dev_repo.duplicate_id = comm_repo
+
+        master_branch = self.Branch.create({
+            'repo_id': ent_repo.id,
+            'name': 'refs/heads/master'
+        })
+
+        dev_ent_branch = self.Branch.create({
+            'repo_id': ent_dev_repo.id,
+            'name': 'refs/heads/master-break-things-moc'
+        })
+
+        master_build = self.Build.create({
+            'branch_id': master_branch.id,
+            'name': 'd0d0caca0000ffffffffffffffffffffffffffff'
+        })
+
+        dev_build = self.Build.create({
+            'branch_id': dev_ent_branch.id,
+            'name': 'd0d0caca0000ffffffffffffffffffffffffffff'
+        })
+
+        # as there is no branch with the same name in the -dev dependency
+        self.assertEqual(dev_build.state, 'duplicate')
+        self.assertEqual(dev_build.duplicate_id, master_build)
+
+        self.Branch.create({
+            'repo_id': comm_dev_repo.id,
+            'name': 'refs/heads/master-break-things-moc'
+        })
+
+        newer_dev_build = self.Build.create({
+            'branch_id': dev_ent_branch.id,
+            'name': 'd0d0caca0000ffffffffffffffffffffffffffff'
+        })
+
+        # now that there is a branch with the same name in the -dev dependency,
+        # the master build could not be considered as a duplicate
+        self.assertEqual(newer_dev_build.state, 'pending')
+        self.assertFalse(newer_dev_build.duplicate_id)
+
     def test_dev_is_duplicate(self):
         """ test dev branch build is a duplicate of a PR """
         dup_repo = self.Repo.create({
