@@ -1,0 +1,58 @@
+<odoo>
+  <data>
+    
+    <record id="job_form" model="ir.ui.view">
+        <field name="name">runbot.job.form</field>
+        <field name="model">runbot.job</field>
+        <field name="arch" type="xml">
+          <form>
+            <header>
+            </header>
+            <sheet>
+              <group name="job_group">
+                <field name="name"/>
+                <field name="logs_name"/>
+                <field name="logs_path"/>
+                <field name="logs_filename"/>
+                <field name="logs_location"/>
+                <field name="is_default_parsed"/>
+                <field name="can_be_parsed"/>
+                <field name="logs_can_be_accessed"/>
+              </group>
+            </sheet>
+          </form>
+        </field>
+    </record>
+          
+    
+    <record id="job_view_tree" model="ir.ui.view">
+        <field name="name">runbot.job.tree</field>
+        <field name="model">runbot.job</field>
+        <field name="arch" type="xml">
+            <tree string="Jobs">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="logs_location"/>
+                <field name="can_be_parsed"/>
+                <field name="is_default_parsed"/>
+            </tree>
+        </field>
+    </record>
+    
+    <record id="open_view_job_tree" model="ir.actions.act_window">
+        <field name="name">Jobs</field>
+        <field name="res_model">runbot.job</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+    
+    <menuitem
+        name="Jobs" 
+        id="runbot_menu_job_tree"
+        parent="runbot.runbot_menu_root"
+        sequence="50"
+        action="open_view_job_tree"
+        />
+          
+
+  </data>
+</odoo>

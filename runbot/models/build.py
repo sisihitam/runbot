@@ -358,7 +358,11 @@ class runbot_build(models.Model):
                 SELECT dest
                   FROM runbot_build
                  WHERE dest IN %s
-                   AND (state != 'done' OR job_end > (now() - interval '7 days'))
+                   AND (
+                        state != 'done'
+                        OR job_end > (now() - interval '7 days')
+                        OR (job_end is null AND create_date > (now() - interval '7 days'))
+                    )
             """, [tuple(builds)])
             actives = set(b[0] for b in self.env.cr.fetchall())
 
@@ -414,13 +418,13 @@ class runbot_build(models.Model):
 
     def _schedule(self):
         """schedule the build"""
-        jobs = self._list_jobs()
 
         icp = self.env['ir.config_parameter']
         # For retro-compatibility, keep this parameter in seconds
         default_timeout = int(icp.get_param('runbot.runbot_timeout', default=1800)) / 60
 
         for build in self:
+            jobs = build._list_jobs()
             if build.state == 'deathrow':
                 build._kill(result='manually_killed')
                 continue
@@ -597,6 +601,7 @@ class runbot_build(models.Model):
                     if os.path.islink(addon_path) or os.path.isfile(addon_path):
                         os.remove(addon_path)
                     else:
+
                         shutil.rmtree(addon_path)
                 shutil.move(module, build._server('addons'))
 

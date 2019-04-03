@@ -1,0 +1,33 @@
+<odoo>
+  <data>
+    
+    <record id="repo_form" model="ir.ui.view">
+        <field name="name">runbot.repo.form</field>
+        <field name="model">runbot.repo</field>
+        <field name="inherit_id" ref="runbot.repo_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='hook_time']" position="after">
+                <field name="nobuild"/>
+                <field name="parse_job_ids" widget="many2many_tags" options="{'no_create': True}" attrs="{'invisible': [('nobuild','=',True)]}"/>
+                <field name="custom_parse_ids" attrs="{'invisible': [('nobuild','=',True)]}" nolabel="1" colspan="2">
+                  <tree editable="bottom">
+                    <field name="job_id" options="{'no_create': True}"/>
+                    <field name="parse_type"/>
+                    <field name="regex_id" options="{'no_create': True}"/>
+                    <field name="regex"/>
+                  </tree>
+                </field>
+                <field name="skip_job_ids" widget="many2many_tags" options="{'no_create': True}" attrs="{'invisible': [('nobuild','=',True)]}"/>
+                <field name="log_access_job_ids" widget="many2many_tags" options="{'no_create': True}" attrs="{'invisible': [('nobuild','=',True)]}"/>
+                <field name="restored_db_name" attrs="{'invisible': [('nobuild','=',True)]}"/>
+                <field name="force_update_all" attrs="{'invisible': ['|', ('restored_db_name','=',False), ('nobuild','=',True)]}"/>
+                <field name="testenable_job26" attrs="{'invisible': ['|', ('restored_db_name','=',False), ('nobuild','=',True)]}"/>
+                <field name="force_coverage" attrs="{'invisible': [('nobuild','=',True)]}"/>
+                <field name="custom_coverage" attrs="{'invisible': ['|', ('force_coverage','=',False), ('nobuild','=',True)]}"/>
+            </xpath>
+        </field>
+    </record>
+          
+
+  </data>
+</odoo>

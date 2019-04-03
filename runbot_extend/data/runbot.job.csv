@@ -1,0 +1,11 @@
+id,sequence,name,is_default_parsed,logs_path,logs_filename,logs_name,can_be_parsed,logs_can_be_accessed
+job00,0,job_00_init,0,,,,0,0
+job02,2,job_02_docker_build,0,logs,job_02_docker_build.txt,Docker logs,1,1
+job10,10,job_10_test_base,0,logs,job_10_test_base.txt,Full base logs,1,1
+job20,20,job_20_test_all,1,logs,job_20_test_all.txt,Full all logs,1,1
+job21,21,job_21_coverage_html,0,coverage,index.html,Coverage,0,1
+job22,22,job_22_coverage_result,0,coverage,index.html,Coverage,0,0
+job29,29,job_29_results,0,,,,0,0
+job30,30,job_30_run,0,logs,job_30_run.txt,,0,0
+job25,25,job_25_restore,0,logs,job_25_restore.txt,Full restore logs,1,1
+job26,26,job_26_upgrade,0,logs,job_26_upgrade.txt,Full upgrade logs,1,1

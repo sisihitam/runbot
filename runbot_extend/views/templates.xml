@@ -1,0 +1,17 @@
+<odoo>
+
+<template id="build_button" inherit_id="runbot.build_button">
+    <xpath expr="//a[@name='quick_signin_reference']" position="replace">
+        <a t-if="bu['state']=='running' and not bu['restored_db_name']" t-attf-href="http://{{bu['domain']}}/?db={{bu['real_dest']}}-all" class="btn btn-primary" title="Sign in on this build" aria-label="Sign in on this build"><i class="fa fa-sign-in"/></a>
+        <a t-if="bu['state']=='running' and bu['restored_db_name']" t-attf-href="http://{{bu['domain']}}/?db={{bu['real_dest']}}-custom" class="btn btn-primary" title="Sign in on this build" aria-label="Sign in on this build"><i class="fa fa-sign-in"/></a>
+    </xpath>
+    <xpath expr="//t[@name='signin_reference_list']" position="inside">
+        <li t-if="bu['restored_db_name']"><a t-attf-href="http://{{bu['domain']}}/?db={{bu['real_dest']}}-custom">Connect custom <i class="fa fa-sign-in"></i></a></li>
+    </xpath>
+    <xpath expr="//t[@name='logs_list_reference']" position="replace">
+        <t t-foreach="bu['log_access_job_ids']" t-as='job_logs'>
+            <li t-if="bu['host']"><a t-attf-href="http://{{bu['host']}}/runbot/static/build/#{bu['real_dest']}/{{job_logs.logs_location}}" target="_blank"><t t-esc="job_logs.logs_name"/> <i class="fa fa-file-text-o"/></a></li>
+        </t>
+    </xpath>
+</template>
+</odoo>
