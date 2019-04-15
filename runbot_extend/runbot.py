@@ -60,7 +60,7 @@ class runbot_repo(models.Model):
                                   help='Use --include arg on coverage: list of file name patterns, for example *addons/module1*,*addons/module2*')
     custom_parse_ids = fields.One2many('runbot.job.parse', 'repo_id', string='Custom parse')
     is_custom_config = fields.Boolean('Use Custom configuration')
-    custom_config = fields.Text('Custom configuration'),  help = 'This config will be placed in a text file when job_19, behind the [option] line, and passed with a -c to the jobs.')
+    custom_config = fields.Text('Custom configuration', help = 'This config will be placed in a text file when job_19, behind the [option] line, and passed with a -c to the jobs.')
 
     @api.onchange('parse_job_ids')
     def _onchange_parse_jo(self):
