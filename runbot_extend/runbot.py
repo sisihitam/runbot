@@ -37,6 +37,11 @@ class RunbotJob(models.Model):
         for rec in self:
             rec.logs_location = '%s/%s' % (rec.logs_path, rec.logs_filename)
 
+class BuildConfig(models.TransientModel):
+    _name = 'runbot.build.configuration'
+    _description = 'Runbot build custom configuration'
+    _inherit = 'ir.ui.view'
+
 class runbot_repo(models.Model):
     _inherit = "runbot.repo"
 
@@ -54,6 +59,8 @@ class runbot_repo(models.Model):
     custom_coverage = fields.Char(string='Custom coverage repository',
                                   help='Use --include arg on coverage: list of file name patterns, for example *addons/module1*,*addons/module2*')
     custom_parse_ids = fields.One2many('runbot.job.parse', 'repo_id', string='Custom parse')
+    is_custom_config = fields.Boolean('Use Custom configuration')
+    custom_config = fields.Text('Custom configuration'),  help = 'This config will be placed in a text file when job_19, behind the [option] line, and passed with a -c to the jobs.')
 
     @api.onchange('parse_job_ids')
     def _onchange_parse_jo(self):
@@ -210,6 +217,35 @@ class runbot_build(models.Model):
         if build.repo_id.testenable_job26:
             cmd.append("--test-enable")
         return docker_run(build_odoo_cmd(cmd), log_path, build._path(), build._get_docker_name())
+
+    @runbot_job('testing', 'running')
+    def _job_19_custom_config(self, build, log_path):
+        if not build.repo_id.is_custom_config:
+            return
+        cpu_limit = 2400
+        self._local_pg_createdb("%s-custom_config" % build.dest)
+        cmd, mods = build._cmd()
+        build._log('custom_config', 'Start custom config')
+        if build.repo_id.custom_config:
+            rbc = self.env['runbot.build.configuration'].create({
+                'name': 'custom config build %s' % build.id,
+                'model': 'runbot.build',
+                'type': 'qweb',
+                'arch': "<?xml version='1.0'?><t t-name='runbot.build_config_%s'>%s</t>" % (build.id, build.repo_id.custom_config),
+            })
+            settings = {'build': build}
+            build_config = rbc.render(settings)
+            with open("%s/build.cfg" % build._path(), 'w+') as cfg:
+                cfg.write("[options]\n")
+                cfg.write(build_config)
+            cmd += ['-d', '%s-custom_config' % build.dest, '-c', '%s/build.cfg' % build._path()]
+        if build.coverage:
+            cpu_limit *= 1.5
+            cmd = [get_py_version(build), '-m', 'coverage', 'run',
+                   '--branch', '--source', '/data/build'] + cmd
+        # reset job_start to an accurate job_20 job_time
+        build.write({'job_start': now()})
+        return docker_run(build_odoo_cmd(cmd), log_path, build._path(), build._get_docker_name(), cpu_limit=cpu_limit)
 
 
     @api.model

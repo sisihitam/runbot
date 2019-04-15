@@ -3,6 +3,7 @@ job00,0,job_00_init,0,,,,0,0
 job02,2,job_02_docker_build,0,logs,job_02_docker_build.txt,Docker logs,1,1
 job10,10,job_10_test_base,0,logs,job_10_test_base.txt,Full base logs,1,1
 job20,20,job_20_test_all,1,logs,job_20_test_all.txt,Full all logs,1,1
+job19,19,job_19_custom_config,1,logs,job_19_custom_config.txt,Full custom build logs,1,1
 job21,21,job_21_coverage_html,0,coverage,index.html,Coverage,0,1
 job22,22,job_22_coverage_result,0,coverage,index.html,Coverage,0,0
 job29,29,job_29_results,0,,,,0,0

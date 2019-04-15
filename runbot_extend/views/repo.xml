@@ -24,6 +24,8 @@
                 <field name="testenable_job26" attrs="{'invisible': ['|', ('restored_db_name','=',False), ('nobuild','=',True)]}"/>
                 <field name="force_coverage" attrs="{'invisible': [('nobuild','=',True)]}"/>
                 <field name="custom_coverage" attrs="{'invisible': ['|', ('force_coverage','=',False), ('nobuild','=',True)]}"/>
+                <field name="is_custom_config" attrs="{'invisible': [('nobuild','=',True)]}"/>
+                <field name="custom_config" attrs="{'invisible': ['|', ('is_custom_config','=',False), ('nobuild','=',True)]}"/>
             </xpath>
         </field>
     </record>
