@@ -315,7 +315,7 @@ class runbot_repo(models.Model):
                         LIMIT %(available_slots)s)"""
 
             self.env.cr.execute(query, {'repo_ids': tuple(ids), 'host': fqdn(), 'available_slots': available_slots})
-            pending_build = Build.search(domain + domain_host + [('state', '=', 'pending')])
+            pending_build = Build.search(domain_host + [('state', '=', 'pending')])
             if pending_build:
                 pending_build._schedule()
                 self.env.cr.commit()
