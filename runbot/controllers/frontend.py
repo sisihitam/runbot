@@ -7,11 +7,13 @@ from odoo.addons.http_routing.models.ir_http import slug
 from odoo.addons.website.controllers.main import QueryURL
 from odoo.http import Controller, request, route
 from ..common import uniq_list, flatten, s2human
+from odoo.osv import expression
 
 
 class Runbot(Controller):
 
     def build_info(self, build):
+        # todo check, make this "api multi", guess result is heavy and not sure that orm is batching builds here
         real_build = build.duplicate_id if build.state == 'duplicate' else build
         return {
             'id': build.id,
@@ -26,7 +28,7 @@ class Runbot(Controller):
             'real_dest': real_build.dest,
             'job_age': s2human(real_build.job_age),
             'job_time': s2human(real_build.job_time),
-            'job': real_build.job,
+            'job': real_build.active_job.name,
             'domain': real_build.domain,
             'host': real_build.host,
             'port': real_build.port,
@@ -80,7 +82,7 @@ class Runbot(Controller):
                     search_domain = ['|', '|', '|'] + search_domain
                     search_domain += [('dest', 'ilike', to_search), ('subject', 'ilike', to_search), ('branch_id.branch_name', 'ilike', to_search)]
                 domain += search_domain[1:]
-
+            domain = expression.AND([domain, [('parent_id', '=', False)]]) # don't display children builds on repo view
             build_ids = build_obj.search(domain, limit=100)
             branch_ids, build_by_branch_ids = [], {}
 
@@ -109,7 +111,7 @@ class Runbot(Controller):
                         FROM 
                             runbot_branch br INNER JOIN runbot_build bu ON br.id=bu.branch_id 
                         WHERE 
-                            br.id in %s
+                            br.id in %s AND parent_id is null
                         GROUP BY br.id, bu.id
                         ORDER BY br.id, bu.id DESC
                     ) AS br_bu
@@ -335,14 +337,15 @@ class Runbot(Controller):
     @route(['/runbot/branch/<int:branch_id>', '/runbot/branch/<int:branch_id>/page/<int:page>'], website=True, auth='public', type='http')
     def branch_builds(self, branch_id=None, search='', page=1, limit=50, refresh='', **kwargs):
         """ list builds of a runbot branch """
-        builds_count = request.env['runbot.build'].search_count([('branch_id','=',branch_id)])
+        domain =[('branch_id','=',branch_id), ('parent_id', '=', False)] # don't display children builds on branch view
+        builds_count = request.env['runbot.build'].search_count(domain)
         pager = request.website.pager(
             url='/runbot/branch/%s' % branch_id,
             total=builds_count,
             page=page,
             step=50
         )
-        builds = request.env['runbot.build'].search([('branch_id','=',branch_id)], limit=limit, offset=pager.get('offset',0))
+        builds = request.env['runbot.build'].search(domain, limit=limit, offset=pager.get('offset',0))
 
         context = {'pager': pager, 'builds': builds}
         return request.render("runbot.branch", context)

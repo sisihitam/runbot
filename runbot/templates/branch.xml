@@ -41,7 +41,7 @@
                                 <td><t t-esc="build.result" /></td>
                                 <td><t t-esc="build.state" /></td>
                                 <td><t t-esc="build.host" /></td>
-                                <td><t t-esc="build.job" /></td>
+                                <td><t t-esc="build.active_job.name" /></td>
                                 <td><t t-esc="build.job_time" /></td>
                                 <td><t t-esc="build.build_type" /></td>
                             </tr>

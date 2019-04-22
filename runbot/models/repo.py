@@ -50,6 +50,21 @@ class runbot_repo(models.Model):
     token = fields.Char("Github token", groups="runbot.group_runbot_admin")
     group_ids = fields.Many2many('res.groups', string='Limited to groups')
 
+
+    build_run_config = fields.Many2one('runbot.job.config', 'Run Config')
+    run_config = fields.Many2one('runbot.job.config', 'Run Config', compute='_compute_run_config', inverse='_inverse_run_config')
+
+    def _compute_run_config(self):
+        for repo in self:
+            if repo.build_run_config:
+                repo.run_config = repo.build_run_config
+            else:
+                repo.run_config = self.env.ref('runbot.runbot_job_config_default_test')
+    
+    def _inverse_run_config(self):
+        for repo in self:
+            repo.build_run_config = repo.run_config
+
     def _root(self):
         """Return root directory of repository"""
         default = os.path.join(os.path.dirname(__file__), '../static')
@@ -276,7 +291,7 @@ class runbot_repo(models.Model):
         host = fqdn()
 
         Build = self.env['runbot.build']
-        domain = [('repo_id', 'in', ids), ('branch_id.job_type', '!=', 'none')]
+        domain = [('repo_id', 'in', ids)]
         domain_host = domain + [('host', '=', host)]
 
         # schedule jobs (transitions testing -> running, kill jobs, ...)
@@ -304,7 +319,6 @@ class runbot_repo(models.Model):
                             WHERE
                                 runbot_build.repo_id IN %(repo_ids)s
                                 AND runbot_build.state = 'pending'
-                                AND runbot_branch.job_type != 'none'
                                 AND runbot_build.host IS NULL
                             ORDER BY
                                 runbot_branch.sticky DESC,

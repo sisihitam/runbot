@@ -31,6 +31,7 @@
                         <field name="job_age"/>
                         <field name="duplicate_id"/>
                         <field name="modules"/>
+                        <field name="run_config"/>
                     </group>
                 </sheet>
             </form>
@@ -48,7 +49,7 @@
                 <field name="committer"/>
                 <field name="state"/>
                 <field name="port"/>
-                <field name="job"/>
+                <field name="active_job"/>
                 <field name="result"/>
                 <field name="coverage_result"/>
                 <field name="pid"/>

@@ -8,3 +8,10 @@ access_runbot_branch_admin,runbot_branch_admin,runbot.model_runbot_branch,runbot
 access_runbot_build_admin,runbot_build_admin,runbot.model_runbot_build,runbot.group_runbot_admin,1,1,1,1
 access_runbot_build_dependency_admin,runbot_build_dependency_admin,runbot.model_runbot_build_dependency,runbot.group_runbot_admin,1,1,1,1
 access_irlogging,log by runbot users,base.model_ir_logging,group_user,0,0,1,0
+
+
+
+access_runbot_job_user,runbot_job_user,runbot.model_runbot_job,group_user,1,0,0,0
+access_runbot_job_config_user,runbot_job_config_user,runbot.model_runbot_job_config,group_user,1,0,0,0
+access_runbot_group_job_manager,runbot_group_job_manager,runbot.model_runbot_job,runbot.group_job_manager,1,1,1,1
+access_runbot_job_config_manager,runbot_job_config_manager,runbot.model_runbot_job_config,runbot.group_job_manager,1,1,1,1

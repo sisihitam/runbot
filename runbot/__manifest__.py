@@ -15,6 +15,7 @@
         'views/repo_views.xml',
         'views/branch_views.xml',
         'views/build_views.xml',
+        'views/job_views.xml',
         'views/res_config_settings_views.xml',
         'templates/frontend.xml',
         'templates/build.xml',
@@ -23,5 +24,7 @@
         'templates/nginx.xml',
         'templates/badge.xml',
         'templates/branch.xml',
+        'data/runbot_job_data.xml',
+        'data/repo_data.xml',
     ],
 }

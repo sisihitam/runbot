@@ -27,12 +27,21 @@ class runbot_branch(models.Model):
     modules = fields.Char("Modules to Install", help="Comma-separated list of modules to install and test.")
     job_timeout = fields.Integer('Job Timeout (minutes)', help='For default timeout: Mark it zero')
     priority = fields.Boolean('Build priority', default=False)
-    job_type = fields.Selection([
-        ('testing', 'Testing jobs only'),
-        ('running', 'Running job only'),
-        ('all', 'All jobs'),
-        ('none', 'Do not execute jobs')
-    ], required=True, default='all')
+    no_build = fields.Boolean("Don't build commit on this branch", default=False)
+
+    build_run_config = fields.Many2one('runbot.job.config', 'Run Config')
+    run_config = fields.Many2one('runbot.job.config', 'Run Config', compute='_compute_run_config', inverse='_inverse_run_config')
+
+    def _compute_run_config(self):
+        for branch in self:
+            if branch.build_run_config:
+                branch.run_config = branch.build_run_config
+            else:
+                branch.run_config = branch.repo_id.run_config
+
+    def _inverse_run_config(self):
+        for branch in self:
+            branch.build_run_config = branch.run_config
 
     @api.depends('name')
     def _get_branch_infos(self):

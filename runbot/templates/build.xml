@@ -177,12 +177,15 @@
                             <th>Message</th>
                         </tr>
                         <t t-foreach="logs" t-as="l">
-                            <tr t-att-class="dict(ERROR='danger', WARNING='warning').get(l.level)">
+                            <tr t-att-class="dict(ERROR='danger', WARNING='warning', OK='success').get(l.level)">
                                 <td style="white-space: nowrap;"><t t-esc="l.create_date"/></td>
                                 <td><b t-esc="l.level"/></td>
                                 <td><t t-esc="l.type"/></td>
                                 <td>
-                                    <a t-if="l.type != 'runbot'" t-attf-href="https://{{repo.base}}/blob/{{build['name']}}/{{l.path}}#L{{l.line}}"><t t-esc="l.name"/>:<t t-esc="l.line"/></a> <t t-esc="l.func"/>
+                                    <t t-if="l.type != 'runbot'">
+                                      <a t-if="l.type == 'subbuild'" t-attf-href="/runbot/build/{{l.path}}">Sub build #<t t-esc="l.path"/></a>
+                                      <a t-else="" t-attf-href="https://{{repo.base}}/blob/{{build['name']}}/{{l.path}}#L{{l.line}}"><t t-esc="l.name"/>:<t t-esc="l.line"/></a> <t t-esc="l.func"/>
+                                    </t>
                                     <t t-if="'\n' not in l.message"><t t-esc="l.message"/></t>
                                     <pre t-if="'\n' in l.message" style="margin:0;padding:0; border: none;"><t t-esc="l.message"/></pre>
                                 </td>
