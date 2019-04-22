@@ -196,18 +196,21 @@ class runbot_build(models.Model):
 
     def _guess_result(self):
         cr = self.env.cr
-        cr.execute("""
-            SELECT b.id,
-                   CASE WHEN array_agg(l.level)::text[] && ARRAY['ERROR', 'CRITICAL'] THEN 'ko'
-                        WHEN array_agg(l.level)::text[] && ARRAY['WARNING'] THEN 'warn'
-                        ELSE 'ok'
-                    END
-              FROM runbot_build b
-         LEFT JOIN ir_logging l ON (l.build_id = b.id AND l.level != 'INFO')
-             WHERE b.id = ANY(%s)
-          GROUP BY b.id
-        """, [list(self.filtered(lambda b: b.state == 'testing').ids)])
-        result = {row[0]: row[1] for row in cr.fetchall()}
+        testing_ids = [list(self.filtered(lambda b: b.state == 'testing').ids)]
+        result = {}
+        if testing_ids:
+            cr.execute("""
+                SELECT b.id,
+                    CASE WHEN array_agg(l.level)::text[] && ARRAY['ERROR', 'CRITICAL'] THEN 'ko'
+                            WHEN array_agg(l.level)::text[] && ARRAY['WARNING'] THEN 'warn'
+                            ELSE 'ok'
+                        END
+                FROM runbot_build b
+                LEFT JOIN ir_logging l ON (l.build_id = b.id AND l.level != 'INFO')
+                    WHERE b.id = ANY(%s)
+                GROUP BY b.id
+            """, testing_ids)
+            result = {row[0]: row[1] for row in cr.fetchall()}
         for build in self:
             build.guess_result = result.get(build.id, build.result)
 
