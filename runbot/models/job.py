@@ -74,7 +74,7 @@ class Job(models.Model):
     test_tags = fields.Char('Test tags', help="comma separated list of test tags")
     extra_params = fields.Char('Extra cmd args', tracking=True)
     # python
-    python_code = fields.Text('Python code', tracking=True)
+    python_code = fields.Text('Python code', tracking=True, default="# type python code here\n\n\n\n\n\n")
     running_job = fields.Boolean('Job final state is running', default=False, help="Docker won't be killed if checked")
     # create_build
     create_config = fields.Many2one('runbot.job.config', 'New Build Config', tracking=True, index=True) # may be interresting to index this field
@@ -89,6 +89,13 @@ class Job(models.Model):
     def _inverse_db_name(self):
         for job in self:
             job.custom_db_name = job.db_name
+
+    #@api.constrains('python_code')
+    #def _check_python_code(self):
+    #    for action in self.sudo().filtered('code'):
+    #        msg = test_python_expr(expr=action.code.strip(), mode="exec")
+    #        if msg:
+    #            raise ValidationError(msg)
 
     def copy(self):
         #remove protection on copy
