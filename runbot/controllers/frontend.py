@@ -28,7 +28,7 @@ class Runbot(Controller):
             'real_dest': real_build.dest,
             'job_age': s2human(real_build.job_age),
             'job_time': s2human(real_build.job_time),
-            'job': real_build.active_job.name,
+            'job': real_build.job,
             'domain': real_build.domain,
             'host': real_build.host,
             'port': real_build.port,

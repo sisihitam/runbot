@@ -66,7 +66,7 @@
     <record id="runbot_job_create_light_multi" model="runbot.job">
         <field name="name">create_light_multi</field>
         <field name="job_type">create_build</field>
-        <field name="create_config" ref="runbot_job_config_light_test"/>
+        <field name="create_config_ids" eval="[(4, ref('runbot_job_config_light_test'))]"/>
         <field name="number_builds">10</field>
     </record>
 
@@ -133,22 +133,16 @@
         <field name="jobs" eval="[(4, ref('runbot_job_test_performance_mail'))]"/>
     </record>
 
-    <record id="runbot_job_create_performance_all" model="runbot.job">
-        <field name="name">create_performance_all</field>
+    <record id="runbot_job_create_performance" model="runbot.job">
+        <field name="name">create_performance</field>
         <field name="job_type">create_build</field>
-        <field name="create_config" ref="runbot_job_config_performance_all"/>
-    </record>
-
-    <record id="runbot_job_create_performance_mail" model="runbot.job">
-        <field name="name">create_performance_mail</field>
-        <field name="job_type">create_build</field>
-        <field name="create_config" ref="runbot_job_config_performance_mail"/>
+        <field name="create_config_ids" eval="[(4, ref('runbot_job_config_performance_all')), (4, ref('runbot_job_config_performance_all'))]"/>
     </record>
 
     <record id="runbot_job_config_performance_mail" model="runbot.job.config">
         <field name="name">Mail Performance combo</field>
         <field name="description">Creates two subbuild to test mail performance both with all modules and with test_mail only</field>
-        <field name="jobs" eval="[(4, ref('runbot_job_create_performance_all')),(4, ref('runbot_job_create_performance_mail'))]"/>
+        <field name="jobs" eval="[(4, ref('runbot_job_create_performance'))]"/>
     </record>
 
 </odoo>

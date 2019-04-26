@@ -17,6 +17,7 @@ from odoo import models, fields, api
 from odoo.exceptions import UserError
 from odoo.http import request
 from odoo.tools import config, appdirs
+from collections import defaultdict
 
 _re_error = r'^(?:\d{4}-\d\d-\d\d \d\d:\d\d:\d\d,\d{3} \d+ (?:ERROR|CRITICAL) )|(?:Traceback \(most recent call last\):)$'
 _re_warning = r'^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d,\d{3} \d+ WARNING '
@@ -26,7 +27,6 @@ _logger = logging.getLogger(__name__)
 
 
 class runbot_build(models.Model):
-    
     _name = "runbot.build"
     _order = 'id desc'
 
@@ -78,31 +78,13 @@ class runbot_build(models.Model):
                                   string='Build type')
     parent_id = fields.Many2one('runbot.build', 'Parent Build')
     children_ids = fields.One2many('runbot.build', 'parent_id')
-    #job_type = fields.Selection([
-    #    ('testing', 'Testing jobs only'),
-    #    ('running', 'Running job only'),
-    #    ('all', 'All jobs'),
-    #    ('none', 'Do not execute jobs'),
-    #])
     dependency_ids = fields.One2many('runbot.build.dependency', 'build_id')
 
-    build_run_config = fields.Many2one('runbot.job.config', 'Run Config')
-    run_config = fields.Many2one('runbot.job.config', 'Run Config', compute='_compute_run_config', inverse='_inverse_run_config')
+    run_config_id = fields.Many2one('runbot.job.config', 'Run Config')
 
     def _compute_job(self):
         for build in self:
             build.job = build.active_job.name
-
-    def _compute_run_config(self):
-        for build in self:
-            if build.build_run_config:
-                build.run_config = build.build_run_config
-            else:
-                build.run_config = build.branch_id.run_config
-
-    def _inverse_run_config(self):
-        for build in self:
-            build.build_run_config = build.run_config
 
     def copy(self, values=None):
         raise UserError("Cannot duplicate build!")
@@ -111,7 +93,7 @@ class runbot_build(models.Model):
         branch = self.env['runbot.branch'].search([('id', '=', vals.get('branch_id', False))])
         if branch.no_build:
             return self.env['runbot.build']
-        vals['job_type'] = vals['job_type'] if 'job_type' in vals else branch.job_type
+        vals['run_config_id'] = vals['run_config_id'] if 'run_config_id' in vals else branch.run_config_id.id
         build_id = super(runbot_build, self).create(vals)
         extra_info = {'sequence': build_id.id if not build_id.sequence else build_id.sequence}
         context = self.env.context
@@ -120,12 +102,21 @@ class runbot_build(models.Model):
         repo = build_id.repo_id
         dep_create_vals = []
         nb_deps = len(repo.dependency_ids)
+        params = build_id._get_params()
         if not vals.get('dependency_ids'):
             for extra_repo in repo.dependency_ids:
-                (build_closets_branch, match_type) = build_id.branch_id._get_closest_branch(extra_repo.id)
-                closest_name = build_closets_branch.name
-                closest_branch_repo = build_closets_branch.repo_id
-                last_commit = closest_branch_repo._git_rev_parse(closest_name)
+                repo_name = extra_repo.short_name
+                last_commit = params['dep'][repo_name] # not name
+                if last_commit:
+                    match_type = 'params'
+                    build_closets_branch = False
+                    build_id._log('create', 'Dependency %sfor repo %s defined in commit message' % (last_commit, repo_name))
+                else:
+                    (build_closets_branch, match_type) = build_id.branch_id._get_closest_branch(extra_repo.id)
+                    closest_name = build_closets_branch.name
+                    closest_branch_repo = build_closets_branch.repo_id
+                    last_commit = closest_branch_repo._git_rev_parse(closest_name)
+                    build_id._log('create', 'Dependency %s for repo %s defined from closest branch: %s' % (last_commit, repo_name, closest_name)) 
                 dep_create_vals.append({
                     'build_id': build_id.id,
                     'dependecy_repo_id': extra_repo.id,
@@ -133,6 +124,13 @@ class runbot_build(models.Model):
                     'dependency_hash': last_commit,
                     'match_type': match_type,
                 })
+                
+                try:
+                    commit_oneline = extra_repo._git(['show', '--pretty="%H -- %s"', '-s', last_commit]).strip()
+                except:
+                    commit_oneline = 'Fail to get commit_oneline'
+                    pass # todo remove this try catch and make correct patch for _git
+                build_id._log('create', commit_oneline)
 
         for dep_vals in dep_create_vals:
             self.env['runbot.build.dependency'].sudo().create(dep_vals)
@@ -147,7 +145,7 @@ class runbot_build(models.Model):
                 ('duplicate_id', '=', False),
                 # ('build_type', '!=', 'indirect'),  # in case of performance issue, this little fix may improve performance a little but less duplicate will be detected when pushing an empty branch on repo with duplicates
                 ('result', '!=', 'skipped'),
-                ('job_type', '=', build_id.job_type),
+                ('run_config_id', '=', build_id.run_config_id.id),
             ]
             candidates = self.search(domain)
             if candidates and nb_deps:
@@ -260,6 +258,19 @@ class runbot_build(models.Model):
     def _get_active_log_path(self):
         return self._path('logs', '%s.txt' % self.active_job)
 
+    def _get_params(self):
+        message=False
+        try:
+            message = self.repo_id._git(['show', '-s', self.name])
+        except:
+            pass # todo remove this try catch and make correct patch for _git
+        params = defaultdict(lambda: defaultdict(str))
+        if message:
+            regex = re.compile(r'^[\t ]*dep=([A-Za-z0-9\-_]+/[A-Za-z0-9\-_]+):([0-9A-Fa-f\-]*) *(#.*)?$', re.M) # dep:repo:hash #comment
+            for result in re.findall(regex, message):
+                params['dep'][result[0]]=result[1]
+        return params
+
     def _force(self, message=None):
         """Force a rebuild and return a recordset of forced builds"""
         forced_builds = self.env['runbot.build']
@@ -286,7 +297,7 @@ class runbot_build(models.Model):
                     'subject': build.subject,
                     'modules': build.modules,
                     'build_type': 'rebuild',
-                    'build_run_config': build.build_run_config.id,
+                    'run_config_id': build.run_config_id.id,
                 })
                 build = new_build
             else:
@@ -306,6 +317,7 @@ class runbot_build(models.Model):
         self.write({'state': 'done', 'result': 'skipped'})
         to_unduplicate = self.search([('id', 'in', self.ids), ('duplicate_id', '!=', False)])
         to_unduplicate._force()
+
     def _local_cleanup(self):
         for build in self:
             # Cleanup the *local* cluster
@@ -411,7 +423,7 @@ class runbot_build(models.Model):
                     build._log('schedule', 'No job in config, doing nothing')
                     continue
                 try:
-                    build._log('init', 'Init build environment with config %s ' % build.run_config.name)
+                    build._log('init', 'Init build environment with config %s ' % build.run_config_id.name)
                     # notify pending build - avoid confusing users by saying nothing
                     build._github_status()
                     build._checkout()
@@ -578,8 +590,8 @@ class runbot_build(models.Model):
             for build_dependency in build.dependency_ids:
                 closest_branch = build_dependency.closest_branch_id
                 latest_commit = build_dependency.dependency_hash
-                repo = closest_branch.repo_id
-                closest_name = closest_branch.name
+                repo = closest_branch.repo_id or build_dependency.repo_id
+                closest_name = closest_branch.name or 'no_branch'
                 if build_dependency.match_type == 'default':
                     server_match = 'default'
                 elif server_match != 'default':
@@ -589,6 +601,7 @@ class runbot_build(models.Model):
                     'Building environment',
                     '%s match branch %s of %s' % (build_dependency.match_type, closest_name, repo.name)
                 )
+                
                 if not repo._hash_exists(latest_commit):
                     repo._update(force=True)
                 if not repo._hash_exists(latest_commit):
@@ -597,11 +610,6 @@ class runbot_build(models.Model):
                     build._log('_checkout',"Dependency commit %s in repo %s is unreachable" % (latest_commit, repo.name))
                     raise Exception
 
-                commit_oneline = repo._git(['show', '--pretty="%H -- %s"', '-s', latest_commit]).strip()
-                build._log(
-                    'Building environment',
-                    'Server built based on commit %s from %s' % (commit_oneline, closest_name)
-                )
                 repo._git_export(latest_commit, build._path())
 
             # Finally mark all addons to move to openerp/addons
@@ -768,7 +776,7 @@ class runbot_build(models.Model):
 
     def _github_status(self):
         """Notify github of failed/successful builds"""
-        if self.run_config.update_github_state:
+        if self.run_config_id.update_github_state:
             runbot_domain = self.env['runbot.repo']._domain()
             for build in self:
                 desc = "runbot build %s" % (build.dest,)
@@ -793,7 +801,7 @@ class runbot_build(models.Model):
 
     def _next_job_values(self):
         self.ensure_one()
-        ordered_jobs = list(self.run_config.jobs)
+        ordered_jobs = list(self.run_config_id.jobs)
         if not ordered_jobs:
             return {'active_job': False, 'state':'done', 'result': self.result or self.guess_result}
 

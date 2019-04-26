@@ -40,10 +40,13 @@ class Test_Cron(common.TransactionCase):
         mock_fqdn.return_value = 'runbotx.foo.com'
         mock_cron_period.return_value = 2
         self.env['ir.config_parameter'].sudo().set_param('runbot.runbot_update_frequency', 1)
+        self.Repo.create({'name': '/path/somewhere/disabled.git', 'mode': 'disabled'})  # create a disabled
+        self.Repo.search([]).write({'mode': 'disabled'}) #  disable all depo, in case we have existing ones
+        local_repo = self.Repo.create({'name': '/path/somewhere/rep.git'})  # create active repo
         ret = self.Repo._cron_fetch_and_schedule('runbotx.foo.com')
         self.assertEqual(None, ret)
-        mock_update.assert_called_with(self.Repo, force=False)
-        mock_create.assert_called_with(self.Repo)
+        mock_update.assert_called_with(local_repo, force=False)
+        mock_create.assert_called_with(local_repo)
 
     @patch('odoo.addons.runbot.models.repo.runbot_repo._get_cron_period')
     @patch('odoo.addons.runbot.models.repo.runbot_repo._reload_nginx')
@@ -54,7 +57,10 @@ class Test_Cron(common.TransactionCase):
         mock_fqdn.return_value = 'runbotx.foo.com'
         mock_cron_period.return_value = 2
         self.env['ir.config_parameter'].sudo().set_param('runbot.runbot_update_frequency', 1)
+        self.Repo.create({'name': '/path/somewhere/disabled.git', 'mode': 'disabled'})  # create a disabled
+        self.Repo.search([]).write({'mode': 'disabled'}) #  disable all depo, in case we have existing ones
+        local_repo = self.Repo.create({'name': '/path/somewhere/rep.git'})  # create active repo
         ret = self.Repo._cron_fetch_and_build('runbotx.foo.com')
         self.assertEqual(None, ret)
-        mock_scheduler.assert_called_with([])
+        mock_scheduler.assert_called_with([local_repo.id])
         self.assertTrue(mock_reload.called)

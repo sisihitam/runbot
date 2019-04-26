@@ -51,19 +51,19 @@ class runbot_repo(models.Model):
     group_ids = fields.Many2many('res.groups', string='Limited to groups')
 
 
-    build_run_config = fields.Many2one('runbot.job.config', 'Run Config')
-    run_config = fields.Many2one('runbot.job.config', 'Run Config', compute='_compute_run_config', inverse='_inverse_run_config')
+    build_run_config_id = fields.Many2one('runbot.job.config', 'Run Config')
+    run_config_id = fields.Many2one('runbot.job.config', 'Run Config', compute='_compute_run_config_id', inverse='_inverse_run_config_id')
 
-    def _compute_run_config(self):
+    def _compute_run_config_id(self):
         for repo in self:
-            if repo.build_run_config:
-                repo.run_config = repo.build_run_config
+            if repo.build_run_config_id:
+                repo.run_config_id = repo.build_run_config_id
             else:
-                repo.run_config = self.env.ref('runbot.runbot_job_config_default_test')
+                repo.run_config_id = self.env.ref('runbot.runbot_job_config_default_test')
     
-    def _inverse_run_config(self):
+    def _inverse_run_config_id(self):
         for repo in self:
-            repo.build_run_config = repo.run_config
+            repo.build_run_config_id = repo.run_config_id
 
     def _root(self):
         """Return root directory of repository"""

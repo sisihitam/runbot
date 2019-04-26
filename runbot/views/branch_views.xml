@@ -20,10 +20,7 @@
                 <field name="state"/>
                 <field name="modules"/>
                 <field name="job_timeout"/>
-                <field name="run_config"/>
-                <!-- keep for next version
-                <field name="test_tags"/>
-                -->
+                <field name="run_config_id"/>
               </group>
             </sheet>
           </form>

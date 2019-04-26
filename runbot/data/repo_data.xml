@@ -24,21 +24,21 @@
     <record id="repo_community" model="runbot.repo">
         <field name="duplicate_id" ref="repo_community_dev"/>
         <field name="dependency_ids" eval="[]"/>
-        <field name="build_run_config" ref="runbot_job_config_default_test"/>
+        <field name="build_run_config_id" ref="runbot_job_config_default_test"/>
     </record>
     <record id="repo_community_dev" model="runbot.repo">
         <field name="duplicate_id" ref="repo_community"/>
         <field name="dependency_ids" eval="[]"/>
-        <field name="build_run_config" ref="runbot_job_config_default_test"/>
+        <field name="build_run_config_id" ref="runbot_job_config_default_test"/>
     </record>
     <record id="repo_enterprise" model="runbot.repo">
         <field name="duplicate_id" ref="repo_enterprise_dev"/>
         <field name="dependency_ids" eval="[(4, ref('repo_community'))]"/>
-        <field name="build_run_config" ref="runbot_job_config_default_test"/>
+        <field name="build_run_config_id" ref="runbot_job_config_default_test"/>
     </record>
     <record id="repo_enterprise_dev" model="runbot.repo">
         <field name="duplicate_id" ref="repo_enterprise"/>
         <field name="dependency_ids" eval="[(4, ref('repo_community_dev'))]"/>
-        <field name="build_run_config" ref="runbot_job_config_default_test"/>
+        <field name="build_run_config_id" ref="runbot_job_config_default_test"/>
     </record>
 </odoo>

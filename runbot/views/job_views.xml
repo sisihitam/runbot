@@ -28,7 +28,7 @@
                         <field name="extra_params"/>
                     </group>
                     <group string="Create settings" attrs="{'invisible': [('job_type', 'not in', ('python', 'create_build'))]}">
-                        <field name="create_config"/>
+                        <field name="create_config_ids" widget="many2many_tags" options="{'no_create': True}" />
                         <field name="number_builds"/>
                     </group>
                 </sheet>

@@ -77,9 +77,9 @@ class Job(models.Model):
     python_code = fields.Text('Python code', tracking=True, default="# type python code here\n\n\n\n\n\n")
     running_job = fields.Boolean('Job final state is running', default=False, help="Docker won't be killed if checked")
     # create_build
-    create_config = fields.Many2one('runbot.job.config', 'New Build Config', tracking=True, index=True) # may be interresting to index this field
+    create_config_ids = fields.Many2many('runbot.job.config', string='New Build Configs', tracking=True, index=True)
     number_builds = fields.Integer('Number of build to create', default=1, tracking=True)
-    # CARE TO RECUSION. Forbid create_jobs in create_config?
+    # CARE TO RECUSION
 
     @api.depends('name', 'custom_db_name')
     def _compute_db_name(self):
@@ -148,24 +148,27 @@ class Job(models.Model):
         # todo: display number of running/pending subbuild on /repo
         # todo: kill all subbuild when killing buil
         # todo: bunch of things about parent/children
+
+        # should we add a limit to avoid explosion of configs? 
         for i in range(self.number_builds):
-            children = self.env['runbot.build'].create({
-                'dependency_ids': [(4, did) for did in build.dependency_ids],
-                'build_run_config': self.create_config.id,
-                'parent_id': build.id,
-                'branch_id': build.branch_id.id,
-                'name': build.name,
-                'build_type': build.build_type,
-                'author': build.author,
-                'date': build.date,
-                'author': build.author,
-                'author_email': build.author_email,
-                'committer': build.committer,
-                'committer_email': build.committer_email,
-                'subject': build.subject,
-                'modules': build.modules,
-            })
-            build._log('create_build', 'created with config %s' % self.create_config.name, ttype='subbuild', path=str(children.id))
+            for create_config in self.create_config_ids:
+                children = self.env['runbot.build'].create({
+                    'dependency_ids': [(4, did) for did in build.dependency_ids],
+                    'run_config_id': create_config.id,
+                    'parent_id': build.id,
+                    'branch_id': build.branch_id.id,
+                    'name': build.name,
+                    'build_type': build.build_type,
+                    'author': build.author,
+                    'date': build.date,
+                    'author': build.author,
+                    'author_email': build.author_email,
+                    'committer': build.committer,
+                    'committer_email': build.committer_email,
+                    'subject': build.subject,
+                    'modules': build.modules,
+                })
+                build._log('create_build', 'created with config %s' % create_config.name, ttype='subbuild', path=str(children.id))
 
     def _run_python(self, build, log_path):
         pass

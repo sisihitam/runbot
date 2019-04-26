@@ -31,7 +31,7 @@
                         <field name="job_age"/>
                         <field name="duplicate_id"/>
                         <field name="modules"/>
-                        <field name="run_config"/>
+                        <field name="run_config_id"/>
                     </group>
                 </sheet>
             </form>
