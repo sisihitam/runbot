@@ -51,7 +51,6 @@ class runbot_build(models.Model):
     state = fields.Char('Status', default='pending')  # pending, testing, running, done, duplicate, deathrow
     active_job = fields.Many2one('runbot.job', 'Job')
     job = fields.Char('Active job display name', compute='_compute_job')
-    active_job_index = fields.Integer('Job index', default=-1, readonly=True)
     job_start = fields.Datetime('Job start')
     job_end = fields.Datetime('Job end')
     build_start = fields.Datetime('Build start')
@@ -805,13 +804,12 @@ class runbot_build(models.Model):
         if not ordered_jobs:
             return {'active_job': False, 'state':'done', 'result': self.result or self.guess_result}
 
-        index = self.active_job_index
-        next_index = index+1
+        next_index = ordered_jobs.index(self.active_job) + 1 if self.active_job else 0
         if next_index >= len(ordered_jobs):
-            return {'active_job': False, 'active_job_index': next_index, 'state':'done', 'result': self.result or self.guess_result}
+            return {'active_job': False, 'state':'done', 'result': self.result or self.guess_result}
 
         new_job = ordered_jobs[next_index]
-        return {'active_job': new_job.id, 'active_job_index': next_index, 'state': new_job.job_state()}
+        return {'active_job': new_job.id, 'state': new_job.job_state()}
       
 
 class runbot_build_dependency(models.Model):
