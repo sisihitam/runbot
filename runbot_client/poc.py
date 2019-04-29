@@ -19,7 +19,7 @@ class RunbotClient():
     def get_available_slots(self):
         Build = self.env['runbot.build']
         nb_testing = Build.search_count([('state', '=', 'testing'), ('host', '=', self.fqdn)])
-        return self.args.db_workers - nb_testing
+        return self.args.nb_workers - nb_testing
 
     def main_loop(self):
         while True:
