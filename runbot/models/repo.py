@@ -51,15 +51,15 @@ class runbot_repo(models.Model):
     group_ids = fields.Many2many('res.groups', string='Limited to groups')
 
 
-    build_run_config_id = fields.Many2one('runbot.job.config', 'Run Config')
-    run_config_id = fields.Many2one('runbot.job.config', 'Run Config', compute='_compute_run_config_id', inverse='_inverse_run_config_id')
+    build_run_config_id = fields.Many2one('runbot.build.config', 'Run Config')
+    run_config_id = fields.Many2one('runbot.build.config', 'Run Config', compute='_compute_run_config_id', inverse='_inverse_run_config_id')
 
     def _compute_run_config_id(self):
         for repo in self:
             if repo.build_run_config_id:
                 repo.run_config_id = repo.build_run_config_id
             else:
-                repo.run_config_id = self.env.ref('runbot.runbot_job_config_default_test')
+                repo.run_config_id = self.env.ref('runbot.runbot_build_config_default_test')
     
     def _inverse_run_config_id(self):
         for repo in self:

@@ -49,7 +49,7 @@ class runbot_build(models.Model):
     guess_result = fields.Char(compute='_guess_result')
     pid = fields.Integer('Pid')
     state = fields.Char('Status', default='pending')  # pending, testing, running, done, duplicate, deathrow
-    active_job = fields.Many2one('runbot.job', 'Job')
+    active_job = fields.Many2one('runbot.build.config.step', 'Job')
     job = fields.Char('Active job display name', compute='_compute_job')
     job_start = fields.Datetime('Job start')
     job_end = fields.Datetime('Job end')
@@ -79,7 +79,7 @@ class runbot_build(models.Model):
     children_ids = fields.One2many('runbot.build', 'parent_id')
     dependency_ids = fields.One2many('runbot.build.dependency', 'build_id')
 
-    run_config_id = fields.Many2one('runbot.job.config', 'Run Config')
+    run_config_id = fields.Many2one('runbot.build.config', 'Run Config')
 
     def _compute_job(self):
         for build in self:

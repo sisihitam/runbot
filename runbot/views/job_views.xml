@@ -2,7 +2,7 @@
   <data>
 
      <record id="job_form" model="ir.ui.view">
-        <field name="model">runbot.job</field>
+        <field name="model">runbot.build.config.step</field>
         <field name="arch" type="xml">
             <form string="Job">
                 <sheet>
@@ -16,7 +16,7 @@
                         <field name="python_code" widget="ace" options="{'mode': 'python'}"/>
                         <field name="running_job"/>
                     </group>
-                    <group string="Test settings" attrs="{'invisible': [('job_type', 'not in', ('python', 'test_odoo'))]}">
+                    <group string="Test settings" attrs="{'invisible': [('job_type', 'not in', ('python', 'install_odoo'))]}">
                         <field name="create_db"/>
                         <field name="install_modules"/>
                         <field name="custom_db_name"/>
@@ -36,7 +36,7 @@
         </field>
     </record>
     <record id="config_form" model="ir.ui.view">
-        <field name="model">runbot.job.config</field>
+        <field name="model">runbot.build.config</field>
         <field name="arch" type="xml">
             <form string="Config">
                 <sheet>
@@ -54,12 +54,12 @@
 
     <record id="open_view_job_tree" model="ir.actions.act_window">
         <field name="name">Build Jobs</field>
-        <field name="res_model">runbot.job</field>
+        <field name="res_model">runbot.build.config.step</field>
         <field name="view_mode">tree,form</field>
     </record>
     <record id="open_view_job_config_tree" model="ir.actions.act_window">
         <field name="name">Build Job Configs</field>
-        <field name="res_model">runbot.job.config</field>
+        <field name="res_model">runbot.build.config</field>
         <field name="view_mode">tree,form</field>
     </record>
     

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="runbot_job_test_base" model="runbot.job">
+    <record id="runbot_build_config_step_test_base" model="runbot.build.config.step">
         <field name="name">base</field>
         <field name="install_modules">base</field>
         <field name="cpu_limit">600</field>
@@ -9,7 +9,7 @@
         <field name="sequence">10</field>
     </record>
 
-    <record id="runbot_job_test_all" model="runbot.job">
+    <record id="runbot_build_config_step_test_all" model="runbot.build.config.step">
         <field name="name">all</field>
         <field name="install_modules">*</field>
         <field name="test_enable" eval="True"/>
@@ -17,28 +17,28 @@
         <field name="sequence">20</field>
     </record>
 
-    <record id="runbot_job_run" model="runbot.job">
+    <record id="runbot_build_config_step_run" model="runbot.build.config.step">
         <field name="name">run</field>
         <field name="job_type">run_odoo</field>
         <field name="protected" eval="True"/>
         <field name="sequence">1000</field>
     </record>
 
-    <record id="runbot_job_config_default_test" model="runbot.job.config">
+    <record id="runbot_build_config_default_test" model="runbot.build.config">
         <field name="name">Default</field>
         <field name="update_github_state" eval="True"/>
-        <field name="jobs" eval="[(4, ref('runbot_job_test_base')), (4, ref('runbot_job_test_all')), (4, ref('runbot_job_run'))]"/>
+        <field name="jobs" eval="[(4, ref('runbot_build_config_step_test_base')), (4, ref('runbot_build_config_step_test_all')), (4, ref('runbot_build_config_step_run'))]"/>
         <field name="protected" eval="True"/>
     </record>
 
-    <record id="runbot_job_config_light_test" model="runbot.job.config">
+    <record id="runbot_build_config_light_test" model="runbot.build.config">
         <field name="name">Light</field>
         <field name="description">Test all only, usefull for multibuild</field>
-        <field name="jobs" eval="[(4, ref('runbot_job_test_all'))]"/>
+        <field name="jobs" eval="[(4, ref('runbot_build_config_step_test_all'))]"/>
         <field name="protected" eval="True"/>
     </record>
 
-    <record id="runbot_job_config_nothing" model="runbot.job.config">
+    <record id="runbot_build_config_nothing" model="runbot.build.config">
         <field name="name">Nothing</field>
         <field name="description">Do nothing</field>
         <field name="jobs" eval="[]"/>
@@ -47,7 +47,7 @@
 
 
     <!-- Coverage-->
-    <record id="runbot_job_test_coverage" model="runbot.job">
+    <record id="runbot_build_config_step_test_coverage" model="runbot.build.config.step">
         <field name="name">coverage</field>
         <field name="install_modules">*</field>
         <field name="cpu_limit">3600</field>
@@ -57,27 +57,27 @@
         <field name="sequence">30</field>
     </record>
 
-    <record id="runbot_job_config_test_coverage" model="runbot.job.config">
+    <record id="runbot_build_config_test_coverage" model="runbot.build.config">
         <field name="name">Coverage</field>
-        <field name="jobs" eval="[(4, ref('runbot_job_test_coverage'))]"/>
+        <field name="jobs" eval="[(4, ref('runbot_build_config_step_test_coverage'))]"/>
     </record>
 
     <!-- Multi build-->
-    <record id="runbot_job_create_light_multi" model="runbot.job">
+    <record id="runbot_build_config_step_create_light_multi" model="runbot.build.config.step">
         <field name="name">create_light_multi</field>
         <field name="job_type">create_build</field>
-        <field name="create_config_ids" eval="[(4, ref('runbot_job_config_light_test'))]"/>
+        <field name="create_config_ids" eval="[(4, ref('runbot_build_config_light_test'))]"/>
         <field name="number_builds">10</field>
     </record>
 
-    <record id="runbot_job_config_multibuild" model="runbot.job.config">
+    <record id="runbot_build_config_multibuild" model="runbot.build.config">
         <field name="name">Multi build</field>
         <field name="description">Run 10 children build with the same hash and dependencies. Use to detect undeterministic issues</field>
-        <field name="jobs" eval="[(4, ref('runbot_job_create_light_multi'))]"/>
+        <field name="jobs" eval="[(4, ref('runbot_build_config_step_create_light_multi'))]"/>
     </record>
 
     <!-- l10n-->
-    <record id="runbot_job_test_l10n" model="runbot.job">
+    <record id="runbot_build_config_step_test_l10n" model="runbot.build.config.step">
         <field name="name">l10n</field>
         <field name="install_modules">*</field>
         <field name="test_enable" eval="True"/>
@@ -86,13 +86,13 @@
         <field name="test_tags">l10nall</field>
     </record>
 
-    <record id="runbot_job_config_l10n" model="runbot.job.config">
+    <record id="runbot_build_config_l10n" model="runbot.build.config">
         <field name="name">L10n</field>
         <field name="description">A simple test_all with a l10n test_tags</field>
-        <field name="jobs" eval="[(4, ref('runbot_job_test_l10n'))]"/>
+        <field name="jobs" eval="[(4, ref('runbot_build_config_step_test_l10n'))]"/>
     </record>
     <!-- Click all-->
-    <record id="runbot_job_test_click_all" model="runbot.job">
+    <record id="runbot_build_config_step_test_click_all" model="runbot.build.config.step">
         <field name="name">clickall</field>
         <field name="install_modules">*</field>
         <field name="test_enable" eval="True"/>
@@ -100,21 +100,21 @@
         <field name="sequence">40</field>
         <field name="test_tags">click_all</field>
     </record>
-    <record id="runbot_job_config_click_all" model="runbot.job.config">
+    <record id="runbot_build_config_click_all" model="runbot.build.config">
         <field name="name">Click All</field>
         <field name="description">Used for nightly click all, test all filters and menus.</field>
-        <field name="jobs" eval="[(4, ref('runbot_job_test_click_all'))]"/>
+        <field name="jobs" eval="[(4, ref('runbot_build_config_step_test_click_all'))]"/>
     </record>
 
     <!-- Mail Performance example config to remove-->
-    <record id="runbot_job_test_performance_all" model="runbot.job">
+    <record id="runbot_build_config_step_test_performance_all" model="runbot.build.config.step">
         <field name="name">test_performance_all</field>
         <field name="install_modules">*</field>
         <field name="test_enable" eval="True"/>
         <field name="sequence">40</field>
         <field name="test_tags">mail_performance</field>
     </record>
-    <record id="runbot_job_test_performance_mail" model="runbot.job">
+    <record id="runbot_build_config_step_test_performance_mail" model="runbot.build.config.step">
         <field name="name">test_performance_mail</field>
         <field name="install_modules">test_mail</field>
         <field name="test_enable" eval="True"/>
@@ -122,27 +122,27 @@
         <field name="test_tags">mail_performance</field>
     </record>
 
-    <record id="runbot_job_config_performance_all" model="runbot.job.config">
+    <record id="runbot_build_config_performance_all" model="runbot.build.config">
         <field name="name">Mail Performance all</field>
         <field name="description">Test_mail performances for all modules</field>
-        <field name="jobs" eval="[(4, ref('runbot_job_test_performance_all'))]"/>
+        <field name="jobs" eval="[(4, ref('runbot_build_config_step_test_performance_all'))]"/>
     </record>
-    <record id="runbot_job_config_performance_mail" model="runbot.job.config">
+    <record id="runbot_build_config_performance_mail" model="runbot.build.config">
         <field name="name">Mail Performance test_mail</field>
         <field name="description">Test_mail performances with test_mail only</field>
-        <field name="jobs" eval="[(4, ref('runbot_job_test_performance_mail'))]"/>
+        <field name="jobs" eval="[(4, ref('runbot_build_config_step_test_performance_mail'))]"/>
     </record>
 
-    <record id="runbot_job_create_performance" model="runbot.job">
+    <record id="runbot_build_config_step_create_performance" model="runbot.build.config.step">
         <field name="name">create_performance</field>
         <field name="job_type">create_build</field>
-        <field name="create_config_ids" eval="[(4, ref('runbot_job_config_performance_all')), (4, ref('runbot_job_config_performance_all'))]"/>
+        <field name="create_config_ids" eval="[(4, ref('runbot_build_config_performance_all')), (4, ref('runbot_build_config_performance_all'))]"/>
     </record>
 
-    <record id="runbot_job_config_performance_mail" model="runbot.job.config">
+    <record id="runbot_build_config_performance_mail" model="runbot.build.config">
         <field name="name">Mail Performance combo</field>
         <field name="description">Creates two subbuild to test mail performance both with all modules and with test_mail only</field>
-        <field name="jobs" eval="[(4, ref('runbot_job_create_performance'))]"/>
+        <field name="jobs" eval="[(4, ref('runbot_build_config_step_create_performance'))]"/>
     </record>
 
 </odoo>

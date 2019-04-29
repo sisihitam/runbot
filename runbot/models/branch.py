@@ -29,8 +29,8 @@ class runbot_branch(models.Model):
     priority = fields.Boolean('Build priority', default=False)
     no_build = fields.Boolean("Don't build commit on this branch", default=False)
 
-    build_run_config_id = fields.Many2one('runbot.job.config', 'Run Config')
-    run_config_id = fields.Many2one('runbot.job.config', 'Run Config', compute='_compute_run_config_id', inverse='_inverse_run_config_id')
+    build_run_config_id = fields.Many2one('runbot.build.config', 'Run Config')
+    run_config_id = fields.Many2one('runbot.build.config', 'Run Config', compute='_compute_run_config_id', inverse='_inverse_run_config_id')
 
     def _compute_run_config_id(self):
         for branch in self:

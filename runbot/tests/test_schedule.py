@@ -38,8 +38,8 @@ class TestSchedule(common.TransactionCase):
             'port': '1234',
             'host': 'runbotxx',
             'job_start': datetime.datetime.now(),
-            'run_config_id': self.env.ref('runbot.runbot_job_config_default_test').id,
-            'active_job': self.env.ref('runbot.runbot_job_run').id,
+            'run_config_id': self.env.ref('runbot.runbot_build_config_default_test').id,
+            'active_job': self.env.ref('runbot.runbot_build_config_step_run').id,
         })
         domain = [('repo_id', 'in', (self.repo.id, ))]
         domain_host = domain + [('host', '=', 'runbotxx')]

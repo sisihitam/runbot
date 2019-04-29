@@ -20,12 +20,12 @@ from odoo.tools import config, appdirs
 _logger = logging.getLogger(__name__)
 
 class Config(models.Model):
-    _name = "runbot.job.config"
+    _name = "runbot.build.config"
     _inherit = "mail.thread"
 
     name = fields.Char('Db name postfix to use', required=True, unique=True, tracking=True)
     description = fields.Char('Config description')
-    jobs = fields.Many2many('runbot.job', help="")
+    jobs = fields.Many2many('runbot.build.config.step', 'runbot_build_config_to_steps_rel', help="")
     update_github_state = fields.Boolean('Notify build state to github', default=False, tracking=True)
     protected = fields.Boolean('Protected', default=False, tracking=True)
 
@@ -45,9 +45,29 @@ class Config(models.Model):
         for job in self.jobs:
             if job != self.jobs[-1] and job.job_type == 'run_odoo':
                 raise UserError('Jobs of type run_odoo should be the last one')
+        self._check_recustion()
+
+    def _check_recustion(self, visited=None): #  todo test
+        print(self.name)
+        visited = visited or []
+        recursion = False
+        if self in visited:
+            recursion = True 
+        visited.append(self)
+        if recursion:
+            raise UserError('Impossible to save config, recursion detected with path: %s' % ">".join([v.name for v in visited]))
+        print(self.jobs)
+        print('--------')
+        for job in self.jobs:
+            print(job.id)
+            print(job.name)
+            if job.job_type == 'create_build':
+                print("> create build")
+                for create_config in job.create_config_ids:
+                    create_config._check_recustion(visited[:])
 
 class Job(models.Model):
-    _name = 'runbot.job'
+    _name = 'runbot.build.config.step'
     _inherit = 'mail.thread'
     _order = 'sequence, id desc'
 
@@ -56,11 +76,11 @@ class Job(models.Model):
         #nome need to be unique art least in one config, mainly to keep database name/coverage result folder unique. 
         #todo needs to sanitize it
     job_type = fields.Selection([
-        ('test_odoo', 'Test odoo'),
+        ('install_odoo', 'Test odoo'), #rename install
         ('run_odoo', 'Run odoo'),
         ('python', 'Python code'),
         ('create_build', 'Create build'),
-    ], default='test_odoo', required=True, tracking=True)
+    ], default='install_odoo', required=True, tracking=True)
     protected = fields.Boolean('Protected', default=False, tracking=True)
     sequence = fields.Integer('Sequence', default=100, tracking=True) # or run after? # or in many2many rel?
     #odoo
@@ -77,7 +97,7 @@ class Job(models.Model):
     python_code = fields.Text('Python code', tracking=True, default="# type python code here\n\n\n\n\n\n")
     running_job = fields.Boolean('Job final state is running', default=False, help="Docker won't be killed if checked")
     # create_build
-    create_config_ids = fields.Many2many('runbot.job.config', string='New Build Configs', tracking=True, index=True)
+    create_config_ids = fields.Many2many('runbot.build.config', 'runbot_build_config_steps_create_config_ids_rel', string='New Build Configs', tracking=True, index=True)
     number_builds = fields.Integer('Number of build to create', default=1, tracking=True)
     # CARE TO RECUSION
 
@@ -137,7 +157,7 @@ class Job(models.Model):
         build.write({'job_start': now(), 'job_end': False}) # state, ...
         if self.job_type == 'run_odoo':
             return self._run_odoo_run(build, log_path)
-        if self.job_type == 'test_odoo':
+        if self.job_type == 'install_odoo':
             return self._run_odoo_test(build, log_path)
         elif self.job_type == 'python':
             return self._run_python(build, log_path)
