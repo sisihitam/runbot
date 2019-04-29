@@ -9,20 +9,33 @@ import time
 _logger = logging.getLogger(__name__)
 
 
-def main_loop(env):
-    fqdn = socket.getfqdn()
-    Build = env['runbot.build']
-    while True:
-        nb_testing = Build.search_count([('state', '=', 'testing'), ('host', '=', fqdn)])
-        available_slots = workers - nb_testing
-        print(available_slots)
-        time.sleep(1)
+class RunbotClient():
+
+    def __init__(self, env, args):
+        self.env = env
+        self.args = args
+        self.fqdn = socket.getfqdn()
+
+    def get_available_slots(self):
+        Build = self.env['runbot.build']
+        nb_testing = Build.search_count([('state', '=', 'testing'), ('host', '=', self.fqdn)])
+        return self.args.db_workers - nb_testing
+
+    def main_loop(self):
+        while True:
+            print(self.get_available_slots())
+            Repo = self.env['runbot.repo']
+            Repo._scheduler(self.get_active_repos.ids)
+            self.env.cr.commit()
+            self.env.reset()
+            Repo._reload_nginx()
+            time.sleep(1)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--odoo-path', help='Odoo sources path')
-    parser.add_argument('--db-host')
+    parser.add_argument('--db-host', default='127.0.0.1')
     parser.add_argument('--db-port', default='5432')
     parser.add_argument('--db-user', default=os.getlogin())
     parser.add_argument('--db-password')
@@ -35,7 +48,6 @@ if __name__ == '__main__':
     odoo.tools.config['db_port'] = args.db_port
     odoo.tools.config['db_user'] = args.db_user
     odoo.tools.config['db_password'] = args.db_password
-    workers = 4
     addon_path = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
     odoo.tools.config['addons_path'] = ','.join([odoo.tools.config['addons_path'], addon_path])
     registry = odoo.registry(args.runbot_db)
@@ -43,4 +55,5 @@ if __name__ == '__main__':
         with registry.cursor() as cr:
             ctx = odoo.api.Environment(cr, odoo.SUPERUSER_ID, {})['res.users'].context_get()
             env = odoo.api.Environment(cr, odoo.SUPERUSER_ID, ctx)
-            main_loop(env)
+            runbot_client = RunbotClient(env, args)
+            runbot_client.main_loop()
