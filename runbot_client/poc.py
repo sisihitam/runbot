@@ -25,7 +25,8 @@ class RunbotClient():
         while True:
             print(self.get_available_slots())
             Repo = self.env['runbot.repo']
-            Repo._scheduler(self.get_active_repos.ids)
+            active_repos = Repo.search([('mode', '!=', 'disabled')])
+            Repo._scheduler(active_repos.ids)
             self.env.cr.commit()
             self.env.reset()
             Repo._reload_nginx()
