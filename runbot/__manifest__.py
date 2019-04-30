@@ -25,6 +25,5 @@
         'templates/badge.xml',
         'templates/branch.xml',
         'data/runbot_build_config_data.xml',
-        'data/repo_data.xml',
     ],
 }

@@ -15,7 +15,7 @@ class runbot_build(models.Model):
     _inherit = "runbot.build"
 
     @runbot_job('testing')
-    def _job_05_check_cla(self, build, log_path):
+    def _job_05_check_cla(self, build, log_path): #todo adapt this to jobs
         cla_glob = glob.glob(build._path("doc/cla/*/*.md"))
         if cla_glob:
             description = "%s Odoo CLA signature check" % build.author

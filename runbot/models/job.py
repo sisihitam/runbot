@@ -48,7 +48,6 @@ class Config(models.Model):
         self._check_recustion()
 
     def _check_recustion(self, visited=None): #  todo test
-        print(self.name)
         visited = visited or []
         recursion = False
         if self in visited:
@@ -56,13 +55,8 @@ class Config(models.Model):
         visited.append(self)
         if recursion:
             raise UserError('Impossible to save config, recursion detected with path: %s' % ">".join([v.name for v in visited]))
-        print(self.jobs)
-        print('--------')
         for job in self.jobs:
-            print(job.id)
-            print(job.name)
             if job.job_type == 'create_build':
-                print("> create build")
                 for create_config in job.create_config_ids:
                     create_config._check_recustion(visited[:])
 
@@ -99,6 +93,7 @@ class Job(models.Model):
     # create_build
     create_config_ids = fields.Many2many('runbot.build.config', 'runbot_build_config_steps_create_config_ids_rel', string='New Build Configs', tracking=True, index=True)
     number_builds = fields.Integer('Number of build to create', default=1, tracking=True)
+    hide_build = fields.Boolean('Hide created build in frontend', default=True, tracking=True)
     # CARE TO RECUSION
 
     @api.depends('name', 'custom_db_name')
@@ -155,6 +150,7 @@ class Job(models.Model):
 
     def run(self, build, log_path):
         build.write({'job_start': now(), 'job_end': False}) # state, ...
+        build._log('run', 'Staring step %s from config %s' % (self.name, build.run_config_id.name))
         if self.job_type == 'run_odoo':
             return self._run_odoo_run(build, log_path)
         if self.job_type == 'install_odoo':
@@ -173,7 +169,7 @@ class Job(models.Model):
         for i in range(self.number_builds):
             for create_config in self.create_config_ids:
                 children = self.env['runbot.build'].create({
-                    'dependency_ids': [(4, did) for did in build.dependency_ids],
+                    'dependency_ids': [(4, did.id) for did in build.dependency_ids],
                     'run_config_id': create_config.id,
                     'parent_id': build.id,
                     'branch_id': build.branch_id.id,
@@ -187,6 +183,7 @@ class Job(models.Model):
                     'committer_email': build.committer_email,
                     'subject': build.subject,
                     'modules': build.modules,
+                    'hidden': self.hide_build,
                 })
                 build._log('create_build', 'created with config %s' % create_config.name, ttype='subbuild', path=str(children.id))
 

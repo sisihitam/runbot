@@ -82,7 +82,7 @@ class Runbot(Controller):
                     search_domain = ['|', '|', '|'] + search_domain
                     search_domain += [('dest', 'ilike', to_search), ('subject', 'ilike', to_search), ('branch_id.branch_name', 'ilike', to_search)]
                 domain += search_domain[1:]
-            domain = expression.AND([domain, [('parent_id', '=', False)]]) # don't display children builds on repo view
+            domain = expression.AND([domain, [('hidden', '=', False)]]) # don't display children builds on repo view
             build_ids = build_obj.search(domain, limit=100)
             branch_ids, build_by_branch_ids = [], {}
 
@@ -111,7 +111,7 @@ class Runbot(Controller):
                         FROM 
                             runbot_branch br INNER JOIN runbot_build bu ON br.id=bu.branch_id 
                         WHERE 
-                            br.id in %s AND parent_id is null
+                            br.id in %s AND bu.hidden = 'f'
                         GROUP BY br.id, bu.id
                         ORDER BY br.id, bu.id DESC
                     ) AS br_bu
@@ -337,7 +337,7 @@ class Runbot(Controller):
     @route(['/runbot/branch/<int:branch_id>', '/runbot/branch/<int:branch_id>/page/<int:page>'], website=True, auth='public', type='http')
     def branch_builds(self, branch_id=None, search='', page=1, limit=50, refresh='', **kwargs):
         """ list builds of a runbot branch """
-        domain =[('branch_id','=',branch_id), ('parent_id', '=', False)] # don't display children builds on branch view
+        domain =[('branch_id','=',branch_id), ('hidden', '=', False)] # don't display children builds on branch view
         builds_count = request.env['runbot.build'].search_count(domain)
         pager = request.website.pager(
             url='/runbot/branch/%s' % branch_id,

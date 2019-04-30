@@ -21,9 +21,16 @@ from collections import defaultdict
 
 _re_error = r'^(?:\d{4}-\d\d-\d\d \d\d:\d\d:\d\d,\d{3} \d+ (?:ERROR|CRITICAL) )|(?:Traceback \(most recent call last\):)$'
 _re_warning = r'^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d,\d{3} \d+ WARNING '
-re_job = re.compile('_job_\d')
 
 _logger = logging.getLogger(__name__)
+
+result_order = ['ok', 'warning', 'ko', 'skipped', 'killed', 'manually_killed']
+state_order = ['pending', 'testing', 'deathrow', 'waiting', 'running', 'done', 'duplicate']
+
+def make_selection(array):
+    def format(string):
+        return (string, string.replace('_', ' ').capitalize())
+    return [format(elem) if isinstance(elem, str) else elem for elem in array]
 
 
 class runbot_build(models.Model):
@@ -45,12 +52,19 @@ class runbot_build(models.Model):
     subject = fields.Text('Subject')
     sequence = fields.Integer('Sequence')
     modules = fields.Char("Modules to Install")
-    result = fields.Char('Result', default='')  # ok, ko, warn, skipped, killed, manually_killed
+
+    # state machine
+
+    display_state = fields.Selection(make_selection(state_order), string='Status', compute='_compute_display_state')
+    state = fields.Selection(make_selection(state_order), string='Build Status', default='pending')
+    global_result = fields.Selection(make_selection(result_order), string='Result', compute='_compute_display_result')
+    result = fields.Selection(make_selection(result_order), string='Build Result')
+
+    # should we add a stored field for children results?
     guess_result = fields.Char(compute='_guess_result')
     pid = fields.Integer('Pid')
-    state = fields.Char('Status', default='pending')  # pending, testing, running, done, duplicate, deathrow
-    active_job = fields.Many2one('runbot.build.config.step', 'Job')
-    job = fields.Char('Active job display name', compute='_compute_job')
+    active_job = fields.Many2one('runbot.build.config.step', 'Active step')
+    job = fields.Char('Active step display name', compute='_compute_job')
     job_start = fields.Datetime('Job start')
     job_end = fields.Datetime('Job end')
     build_start = fields.Datetime('Build start')
@@ -76,10 +90,47 @@ class runbot_build(models.Model):
                                   default='normal',
                                   string='Build type')
     parent_id = fields.Many2one('runbot.build', 'Parent Build')
+    # should we add a has children stored boolean?
+    hidden = fields.Boolean("Don't show build on main page", default=False)
     children_ids = fields.One2many('runbot.build', 'parent_id')
     dependency_ids = fields.One2many('runbot.build.dependency', 'build_id')
 
     run_config_id = fields.Many2one('runbot.build.config', 'Run Config')
+
+    def _compute_display_state(self):
+        if self.state == 'duplicate':
+            self.display_state = self.duplicate_id.display_state
+        elif self._get_state_score(self.state) > self._get_state_score('waiting'): # at least one subbuild is in pending/testing/running
+            children_state = self._get_youngest_state([child.display_state for child in self.children])
+            # if all children are in running/done state (children could't be a duplicate I guess?)
+            if self._get_state_score(children_state) > 'waiting':
+                self.display_state = self.state
+            else:
+                self.display_state = 'waiting'
+
+    def _get_youngest_state(self, states, max=False):
+        index = min([self._get_state_score(state) for state in states])
+        return state_order[index]
+
+    def _get_state_score(self, result):
+        return state_order.index(result)
+
+    def _compute_display_result(self):
+        # we can avoid to read children if build result >= ko. Not sur it is usefull
+        if self._get_result_score(self.result) >= self._get_result_score('ko'):
+            self.global_result = self.result
+        else:
+            children_result = self._get_worst_result([child.global_result for child in self.children], max='ko')
+            self.global_result = self._get_worst_result([self.result, children_result])
+
+    def _get_worst_result(self, results, max=False):
+        index = max([self._get_result_score(result) for result in results])
+        if max:
+            return min(index, self._get_result_score(max))
+        return result_order[index]
+
+    def _get_result_score(self, result):
+        return self.result_order.index(result)
 
     def _compute_job(self):
         for build in self:
@@ -109,13 +160,21 @@ class runbot_build(models.Model):
                 if last_commit:
                     match_type = 'params'
                     build_closets_branch = False
-                    build_id._log('create', 'Dependency %sfor repo %s defined in commit message' % (last_commit, repo_name))
+                    message = 'Dependency for repo %s defined in commit message' % (repo_name)
                 else:
                     (build_closets_branch, match_type) = build_id.branch_id._get_closest_branch(extra_repo.id)
                     closest_name = build_closets_branch.name
                     closest_branch_repo = build_closets_branch.repo_id
                     last_commit = closest_branch_repo._git_rev_parse(closest_name)
-                    build_id._log('create', 'Dependency %s for repo %s defined from closest branch: %s' % (last_commit, repo_name, closest_name)) 
+                    message = 'Dependency for repo %s defined from closest branch %s' % (repo_name, closest_name)
+                try:
+                    commit_oneline = extra_repo._git(['show', '--pretty="%H -- %s"', '-s', last_commit]).strip()
+                except:
+                    commit_oneline = 'Commit %s was not found on build creation %s' % last_commit
+                    # possible that oneline fail if given from commit message. Do it on build? or keep this information
+                
+                build_id._log('create', '%s: %s' % (message, commit_oneline)) 
+
                 dep_create_vals.append({
                     'build_id': build_id.id,
                     'dependecy_repo_id': extra_repo.id,
@@ -123,14 +182,7 @@ class runbot_build(models.Model):
                     'dependency_hash': last_commit,
                     'match_type': match_type,
                 })
-                
-                try:
-                    commit_oneline = extra_repo._git(['show', '--pretty="%H -- %s"', '-s', last_commit]).strip()
-                except:
-                    commit_oneline = 'Fail to get commit_oneline'
-                    pass # todo remove this try catch and make correct patch for _git
-                build_id._log('create', commit_oneline)
-
+               
         for dep_vals in dep_create_vals:
             self.env['runbot.build.dependency'].sudo().create(dep_vals)
 
@@ -143,7 +195,7 @@ class runbot_build(models.Model):
                 ('name', '=', build_id.name),
                 ('duplicate_id', '=', False),
                 # ('build_type', '!=', 'indirect'),  # in case of performance issue, this little fix may improve performance a little but less duplicate will be detected when pushing an empty branch on repo with duplicates
-                ('result', '!=', 'skipped'),
+                '|', ('result', '=', False), ('result', '!=', 'skipped'), # had to reintroduce False posibility for selections
                 ('run_config_id', '=', build_id.run_config_id.id),
             ]
             candidates = self.search(domain)
@@ -185,6 +237,11 @@ class runbot_build(models.Model):
         return build_id
 
     def write(self, values):
+        #check result
+        #result = values.get('result')
+        #if result: # if result is falsy, this is a reset, keep falsy result
+        #    self.result = self._get_worst_result([self.result, result])
+
         res = super(runbot_build, self).write(values)
         # set result on parent
         result = values.get('result')
@@ -192,13 +249,25 @@ class runbot_build(models.Model):
             loglevel = 'OK' if result == 'ok' else 'WARNING' if result == 'warn' else 'ERROR'
             self.parent_id._log('children_build', 'returned a "%s" result ' % (result), level=loglevel, ttype='subbuild', path=self.id)
             self.env['ir.logging'].search([('build_id', '=', self.parent_id.id), ('path', '=', self.id)]).write({'level': loglevel}) # or only first?
-            # think to finish build if no running children and state done?
+            parent_values = {}
             if result != 'ok' and self.parent_id.result in ('ok', 'warn'):
                 if result in ('ko', 'skipped'):
-                    self.parent_id.result = 'ko'
+                    parent_values['result'] = 'ko'
                 elif result == 'warn' and self.parent_id.result == 'ok':
-                    self.parent_id.result = 'warn'
+                    parent_values['result'] = 'warn'
+            new_state = self.parent_id._get_state_update()
+            if new_state:
+                parent_values['state'] = new_state
+            if parent_values:
+                self.parent_id.write(parent_values)
         return res
+
+    def _get_state_update(self, next):
+        # compute result too?
+        if self.state in ('done'):
+            return False
+        if self.state == 'waiting' and all([child.state in ('done', 'skipped') for child in self.children_ids]):
+            return 'done'
 
     def _reset(self):
         self.write({'state': 'pending'})
@@ -238,7 +307,7 @@ class runbot_build(models.Model):
             """, testing_ids)
             result = {row[0]: row[1] for row in cr.fetchall()}
         for build in self:
-            build.guess_result = result.get(build.id, build.result)
+            build.guess_result = result.get(build.id, build.result or '')
 
     def _get_time(self):
         """Return the time taken by the tests"""
@@ -366,9 +435,6 @@ class runbot_build(models.Model):
             for db, in to_delete:
                 self._local_pg_dropdb(db)
 
-    def _list_jobs(self):
-        """List methods that starts with _job_[[:digit:]]"""
-        return sorted(job[1:] for job in dir(self) if re_job.match(job))
 
     def _find_port(self):
         # currently used port
@@ -396,8 +462,6 @@ class runbot_build(models.Model):
 
     def _schedule(self):
         """schedule the build"""
-        jobs = self._list_jobs()
-
         icp = self.env['ir.config_parameter']
         # For retro-compatibility, keep this parameter in seconds
 
@@ -453,7 +517,7 @@ class runbot_build(models.Model):
                     'job_end': now(),
                 }
                 if build.active_job.job_type != 'create_build':
-                    build._log('end_job', 'Job %s finished in %s' % (build.job, build.job_time))
+                    build._log('end_job', 'Step %s finished in %s' % (build.job, build.job_time))
                 # make result of previous job
                 if build.active_job.coverage:
                     build._log('coverage_result', 'Start getting coverage result')
@@ -597,8 +661,7 @@ class runbot_build(models.Model):
                     server_match = 'match'
 
                 build._log(
-                    'Building environment',
-                    '%s match branch %s of %s' % (build_dependency.match_type, closest_name, repo.name)
+                    '_checkout', 'Checkouting %s from %s' % (closest_name, repo.name)
                 )
                 
                 if not repo._hash_exists(latest_commit):
@@ -801,14 +864,14 @@ class runbot_build(models.Model):
     def _next_job_values(self):
         self.ensure_one()
         ordered_jobs = list(self.run_config_id.jobs)
-        if not ordered_jobs:
+        if not ordered_jobs: # no job to do, build is done 
             return {'active_job': False, 'state':'done', 'result': self.result or self.guess_result}
 
         next_index = ordered_jobs.index(self.active_job) + 1 if self.active_job else 0
-        if next_index >= len(ordered_jobs):
+        if next_index >= len(ordered_jobs): #  final job, build is done 
             return {'active_job': False, 'state':'done', 'result': self.result or self.guess_result}
 
-        new_job = ordered_jobs[next_index]
+        new_job = ordered_jobs[next_index] #  job to do, state is job_state (testing or running)
         return {'active_job': new_job.id, 'state': new_job.job_state()}
       
 
